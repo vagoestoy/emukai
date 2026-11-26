@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+<title>EMUKAI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+img{-webkit-user-drag:none}
+#logContent{-webkit-user-select:text;user-select:text}
+body{background:#eee;margin:0;display:flex;justify-content:center;font-family:sans-serif}
+.bottom-links span{display:inline-block;padding:9px 6px;cursor:pointer;text-decoration:underline}
+.phone{width:300px;background:#fff;border:3px solid #000}
+.topbar{background:#000;color:#fff;font-size:11px;display:flex;justify-content:space-between;padding:6px 8px;align-items:center}
+.screen{width:100%;height:320px;background:#000;position:relative;overflow:hidden;border-top:3px solid #000;border-bottom:3px solid #000}
+.screen iframe{width:240px;height:320px;border:0;background:#000;position:absolute;left:50%;top:0;transform:translateX(-50%) scale(var(--gs,1));transform-origin:top center}
+#menu{position:absolute;inset:0;background:#1a1a1a;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;text-align:center;padding:8px 10px;z-index:10;overflow:hidden}
+.mhead{font-size:20px;font-weight:900;margin:2px 0 0}.mhead span{display:block;font-size:11px;font-weight:400;color:#aaa}
+.mver{color:#651BB0;font-size:10px;font-weight:900;margin:2px 0 6px}
+#menuImport{background:#fff;color:#000;border:none;padding:6px 26px;border-radius:12px;font-size:17px;font-weight:900;margin-top:6px;cursor:pointer;display:inline-block;flex-shrink:0}
+#gameList{width:100%;flex:1 1 auto;min-height:0;overflow:auto}
+.manageLauncher{position:absolute;top:12px;left:10px;z-index:20;background:transparent;color:#fff;border:0;padding:4px;font-size:25px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#managePanel{position:fixed;inset:0;background:rgba(0,0,0,.94);color:#fff;display:none;flex-direction:column;z-index:350;padding:16px;overflow:auto}
+#managePanel h3{margin:4px 0 12px}
+.manageSection{background:#222;border:1px solid #444;border-radius:12px;padding:10px;margin:7px 0}
+.manageSection h4{margin:0 0 6px}
+.manageClose{background:#651BB0;color:#fff;border:0;border-radius:10px;padding:12px;font-weight:bold;margin-top:12px}
+.gameItem{background:#333;padding:8px;margin:6px 0;border-radius:12px;text-align:left;display:flex;gap:8px;align-items:center}
+.gameItem img,.gameItem .noicon{width:40px;height:40px;border-radius:8px;background:#fff;object-fit:cover;flex-shrink:0}
+.gameItem .noicon{display:flex;align-items:center;justify-content:center;font-size:20px}
+.gameItem .info{flex:1;min-width:0}
+.gameItem .name{font-weight:bold}
+.gameItem .btns button{background:#555;color:#fff;border:none;padding:5px 8px;border-radius:6px;font-size:11px;margin-top:4px}
+.gameItem .btns button.play{background:#651BB0;font-weight:bold}
+.saveBar{display:flex;gap:6px;width:100%;margin-top:6px;flex-shrink:0}
+.saveBar button,.saveBar label{flex:1;background:#222;color:#fff;border:1px solid #444;padding:8px;border-radius:8px;font-size:11px;text-align:center;cursor:pointer}
+.keypad{display:grid;grid-template-columns:1fr 1fr 1fr;background:#fff;border-top:2px solid #000}
+.key{border:1px solid #000;background:#fff;min-height:56px;min-height:clamp(46px,calc((100dvh - 460px)/5.3),70px);touch-action:none;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:bold;cursor:pointer;touch-action:manipulation}
+.key:active{background:#2ecc71}
+.key.hangup{background:#e53935;color:#fff}
+.key.answer{background:#43a047;color:#fff}
+.top-row{min-height:72px;min-height:clamp(60px,calc((100dvh - 460px)/4.1),88px)}
+html,body{overscroll-behavior:none}
+[data-act],[data-k],[data-combo]{touch-action:none}
+.pressed{background:#2ecc71!important;color:#000!important}
+#dpadCross{width:100%;height:100%;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;border:1px solid #000;background:#fff;overflow:hidden;touch-action:none}
+.dpadBtn{border:none;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;cursor:pointer;touch-action:manipulation;min-height:44px}
+.dpadBtn:active{background:#2ecc71}
+.dpadBtn.ok{background:#000;color:#fff;font-size:14px;font-weight:900}
+.dpadBtn.empty{background:#f0f0f0;pointer-events:none}
+#hudCross button{pointer-events:none}
+.softRow{grid-column:1/-1;display:flex;gap:6px;padding:6px;background:#fff;border:1px solid #000}
+.softRow button{flex:1;background:#e8e8e8;border:2px solid #000;border-radius:10px;font-size:20px;font-weight:900;padding:12px 0;cursor:pointer}
+.softRow button:active{background:#2ecc71}
+.softRow small{display:block;font-size:10px;pointer-events:none}
+#logPanel{position:fixed;inset:0;background:#0a0a0a;color:#0f0;display:none;flex-direction:column;z-index:330;font-family:monospace;font-size:11px}
+#logContent{flex:1;overflow:auto;padding:8px;white-space:pre-wrap}
+#toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#000;color:#fff;padding:8px 14px;border-radius:20px;font-size:12px;display:none;z-index:400;border:1px solid #555;max-width:90%;text-align:center}
+#settingsPanel{position:fixed;inset:0;background:rgba(0,0,0,.95);color:#fff;display:none;flex-direction:column;z-index:300;padding:12px;overflow:auto}
+.opt{background:#222;border:1px solid #333;border-radius:10px;padding:10px;margin:6px 0;display:flex;justify-content:space-between;align-items:center}
+.opt.col{display:block}
+.mini{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#333;border-radius:8px;padding:6px 8px;margin-top:6px;font-size:13px}
+.mini span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini button{background:#e53935;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:bold;flex-shrink:0}
+.mini button.rest{background:#43a047}
+.mini.none{color:#888;font-size:12px;justify-content:center}
+.switch{width:50px;height:28px;background:#444;border-radius:20px;position:relative;flex-shrink:0;cursor:pointer}
+.switch.on{background:#651BB0}
+.switch:after{content:'';position:absolute;width:24px;height:24px;background:#fff;border-radius:50%;top:2px;left:2px}
+.switch.on:after{left:24px}
+.credits{background:#222;border:1px solid #651BB0;border-radius:12px;padding:12px;margin:8px 0;text-align:center}
+.credits .ver{background:#651BB0;color:#fff;display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:900;margin-top:6px}
+#debugBtn{display:none;width:100%;background:#ff3b30;color:#fff;border:none;padding:12px;font-weight:900;font-size:14px;cursor:pointer}
+#portableHUD{position:fixed;inset:0;display:none;z-index:200;pointer-events:none;background:rgba(0,0,0,.15)}
+#portableHUD button{pointer-events:auto;touch-action:manipulation}
+#portableHUD .hud-gear{position:absolute;top:10px;right:12px;background:#fff;border:2px solid #000;border-radius:50%;font-size:22px;padding:8px 12px}
+#portableHUD .hud-soft-top{position:absolute;top:12px;right:62px;display:flex;gap:6px;width:184px}
+#portableHUD .hud-soft-top button{background:#e8e8e8;border:2px solid #000;border-radius:20px;font-weight:900;padding:12px 0;flex:1}
+#portableHUD .hud-top{position:absolute;top:62px;right:62px;display:flex;gap:6px;width:184px}
+#portableHUD .hud-colgar{background:#e53935;color:#fff;border:2px solid #000;border-radius:20px;font-weight:900;padding:12px 0;flex:1}
+#portableHUD .hud-responder{background:#43a047;color:#fff;border:2px solid #000;border-radius:20px;font-weight:900;padding:12px 0;flex:1}
+#portableHUD .hud-left{position:absolute;left:3%;top:50%;transform:translateY(-50%)}
+#portableHUD .hud-cross{width:170px;height:170px;background:#fff;border:3px solid #000;border-radius:22px;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr;overflow:hidden;touch-action:none}
+#portableHUD .hud-cross button{border:none;background:#fff;font-size:24px;font-weight:bold;min-height:48px}
+#portableHUD .hud-cross .empty{background:#f0f0f0;pointer-events:none}
+#portableHUD .hud-ok{position:absolute;right:16px;bottom:20px;background:#000;color:#fff;border:none;border-radius:18px;font-size:30px;font-weight:900;padding:22px 26px}
+#portableHUD .hud-exit{position:absolute;top:10px;left:12px;background:#000;color:#fff;border:none;border-radius:20px;padding:10px 18px;font-weight:900}
+body.portable-on{overflow:hidden;height:100vh;height:100dvh}
+body.portable-on #portableHUD{display:block}
+body.in-menu #portableHUD{display:none!important}
+body.portable-on .phone{width:100vw;height:100vh;height:100dvh;border:none}
+body.portable-on .topbar{display:none}
+body.portable-on .phone .screen{height:100vh;height:100dvh;border:none}
+body.portable-on .keypad,body.portable-on .bottom-links,body.portable-on #debugBtn{display:none!important}
+@media (orientation:portrait){body.portable-on #portableHUD .hud-left{top:auto;bottom:18px;left:4%;transform:none}body.portable-on #portableHUD .hud-ok{top:auto;bottom:48px;right:16px;transform:none}}
+#dlgModal{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:500;padding:16px}
+.dlgBox{background:#fff;color:#171717;padding:18px;border-radius:16px;text-align:center;width:100%;max-width:320px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.dlgBox p{margin:0 0 18px;font-size:15px;line-height:1.4;word-break:break-word}
+.dlgBox button{width:46%;padding:11px;border:0;border-radius:10px;font-weight:bold;cursor:pointer}
+.dlgNo{background:#eee;color:#222}
+.dlgYes{background:#651BB0;color:#fff}
+#wifiModal{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;z-index:310;padding:16px}
+.wifiBox{background:#fff;color:#000;padding:18px;border-radius:14px;text-align:center;width:100%}
+.wifiBox button{width:48%;padding:11px;border:0;border-radius:10px;font-weight:bold;cursor:pointer}
+.wifiYes{background:#651BB0;color:#fff}
+#errBanner{position:fixed;left:0;right:0;top:0;background:#c62828;color:#fff;font:12px sans-serif;padding:8px;z-index:9999;display:none;-webkit-user-select:text;user-select:text}
+</style>
+</head>
+<body>
+<div id="errBanner" onclick="this.style.display='none'"></div>
+<div class="phone">
+<div class="topbar"><span>emukai ▼</span><span>beta 1.0</span><span><button data-act="settings">⚙️</button></span></div>
+<div class="screen">
+<iframe id="gameFrame"></iframe>
+<div id="menu">
+<button class="manageLauncher" type="button" onclick="toggleManage()" aria-label="Administrar juegos" title="Administrar juegos">🟪</button>
+<div class="mhead">EMUKAI <span>juegos kaiOS en tu Android</span></div>
+<p class="mver">beta 1.0 • by vagoestoy</p>
+<div id="gameList"></div>
+<label for="fileInput" id="menuImport">Importar 📥</label>
+<div class="saveBar"><button onclick="exportSaves()">⬇️ Exportar Guardados</button><label for="saveInput">⬆️ Importar Guardados</label></div>
+<p id="zipWarn" style="display:none;font-size:11px;color:#ff6b6b;margin:4px 0 0;">⚠️ JSZip no cargó: prende internet 1 vez</p>
+</div>
+<div id="logPanel"><div style="display:flex;justify-content:space-between;padding:8px;background:#222;color:#fff;"><span>📋 LOG</span><button onclick="closeLog()">X</button></div><div id="logContent"></div><button onclick="clearLog()">🧹 Limpiar</button></div>
+<div id="toast"></div>
+<div id="settingsPanel">
+<h3>⚙️ Opciones</h3>
+<div class="opt"><div><b>🎮 Controles portátiles</b><br><small>HUD flotante, el juego se ajusta a la pantalla</small></div><div class="switch" id="swPortable" onclick="toggleOpt('portable')"></div></div>
+<div class="opt"><div><b>💾 Guardado automático</b></div><div class="switch" id="swAutoSave" onclick="toggleOpt('autoSave')"></div></div>
+<div class="opt"><div><b>🚫 Apagar KaiAds</b></div><div class="switch" id="swNoAds" onclick="toggleOpt('noAds')"></div></div>
+<div class="opt"><div><b>📶 WiFi para juegos</b><br><small id="wifiStatus">Apagado</small></div><div class="switch" id="swWifi" onclick="toggleWifiOpt()"></div></div>
+<div class="opt"><div><b>📳 Vibración</b><br><small>Vibra al picar un botón</small></div><div class="switch" id="swVibration" onclick="toggleOpt('vibration')"></div></div>
+<div class="opt"><div><b>🔴 Mostrar botón Probar</b><br><small>Escondido por default. Si lo apagas, se oculta.</small></div><div class="switch" id="swShowDebug" onclick="toggleOpt('showDebug')"></div></div>
+<div class="credits"><b>EMUKAI</b><p>Creado por<br><b style="color:#fff;font-size:18px;">vagoestoy</b><br>Tu Nokia en tu Android</p><div class="ver">Definitive 1 • PreOffline</div><p style="font-size:11px;color:#aaa;margin-top:8px;">Solo ocupa internet 1 vez para JSZip.<br>Después jala sin internet.</p></div>
+<button onclick="toggleSettings()" style="background:#651BB0;color:#fff;border:none;padding:12px;border-radius:10px;font-weight:bold;">✅ Listo</button>
+</div>
+<div id="managePanel"><h3>🟪 Administrar juegos</h3><div class="manageSection"><h4>🗑️ Ocultar juegos</h4><small style="color:#aaa">Los juegos ocultos no aparecen en el menú. Sus partidas se conservan.</small><div id="delList"></div></div><div class="manageSection"><h4>♻️ Restaurar juegos</h4><small style="color:#aaa">Vuelve a mostrar los juegos que ocultaste.</small><div id="resList"></div></div><button class="manageClose" onclick="toggleManage()">✅ Listo</button></div>
+<div id="wifiModal"><div class="wifiBox"><h3>¿WiFi?</h3><p>Le da internet al juego.<br>Se apaga solo cuando salgas.</p><button class="wifiYes" onclick="confirmWifi(true)">SÍ</button> <button onclick="confirmWifi(false)" style="background:#eee;">No</button></div></div>
+<div id="dlgModal"><div class="dlgBox"><p id="dlgMsg"></p><button class="dlgNo" onclick="dlgAnswer(false)">Cancelar</button> <button class="dlgYes" onclick="dlgAnswer(true)">Aceptar</button></div></div>
+</div>
+<button id="debugBtn" onclick="testBotonRojo()">🔴 PROBAR BOTONES - PÍCAME</button>
+<div class="keypad">
+<div class="softRow"><button data-combo="softL">—<small>Soft Izq.</small></button><button data-combo="softR">—<small>Soft Der.</small></button></div>
+<button class="key top-row hangup" data-combo="colgar">📞</button>
+<div class="top-row" id="dpadCross"><button class="dpadBtn empty"></button><button class="dpadBtn" data-k="38" data-n="ArrowUp">▲</button><button class="dpadBtn empty"></button><button class="dpadBtn" data-k="37" data-n="ArrowLeft">◀</button><button class="dpadBtn ok" data-k="13" data-n="Enter">OK</button><button class="dpadBtn" data-k="39" data-n="ArrowRight">▶</button><button class="dpadBtn empty"></button><button class="dpadBtn" data-k="40" data-n="ArrowDown">▼</button><button class="dpadBtn empty"></button></div>
+<button class="key top-row answer" data-combo="resp">📞</button>
+<button class="key" data-k="49" data-n="1">1</button><button class="key" data-k="50" data-n="2">2</button><button class="key" data-k="51" data-n="3">3</button>
+<button class="key" data-k="52" data-n="4">4</button><button class="key" data-k="53" data-n="5">5</button><button class="key" data-k="54" data-n="6">6</button>
+<button class="key" data-k="55" data-n="7">7</button><button class="key" data-k="56" data-n="8">8</button><button class="key" data-k="57" data-n="9">9</button>
+<button class="key" data-k="42" data-n="*">*</button><button class="key" data-k="48" data-n="0">0</button><button class="key" data-k="35" data-n="#">#</button>
+</div>
+<input type="file" id="fileInput" accept=".zip,application/zip" style="display:none">
+<input type="file" id="saveInput" accept=".json,application/json" style="display:none">
+<input type="file" id="findInput" accept=".zip,application/zip" style="display:none">
+<div class="bottom-links" style="text-align:center;padding:6px;font-size:12px;"><span data-act="home">🏠 Volver</span> <span data-act="save">💾 Guardar</span> <span data-act="log">📋 Log</span> <span data-act="settings">⚙️ Opciones</span></div>
+</div>
+<div id="portableHUD">
+<button class="hud-gear" data-act="settings">⚙️</button>
+<div class="hud-soft-top"><button data-combo="softL">— Izq.</button><button data-combo="softR">— Der.</button></div>
+<div class="hud-top"><button class="hud-colgar" data-combo="colgar">📞 Col.</button><button class="hud-responder" data-combo="resp">📞 Resp</button></div>
+<div class="hud-left"><div class="hud-cross" id="hudCross"><button class="empty"></button><button data-k="38" data-n="ArrowUp">▲</button><button class="empty"></button><button data-k="37" data-n="ArrowLeft">◀</button><button class="empty"></button><button data-k="39" data-n="ArrowRight">▶</button><button class="empty"></button><button data-k="40" data-n="ArrowDown">▼</button><button class="empty"></button></div></div>
+<button class="hud-ok" data-k="13" data-n="Enter">[Ok]</button>
+<button class="hud-exit" data-act="portableoff">✖️ Salir</button>
+</div>
+<script>
+function showErr(m){try{var b=document.getElementById('errBanner');b.textContent='⚠️ '+m+' (toca para cerrar)';b.style.display='block';}catch(e){}}
+window.addEventListener('error',function(e){if(e.target&&e.target!==window)return;showErr(e.message+' @'+e.lineno);});
+window.addEventListener('unhandledrejection',function(e){showErr('Promesa: '+(e.reason&&e.reason.message?e.reason.message:e.reason));});
+var games={},gamesMeta={},saves={},hidden=[];
+var settings={exp:false,portable:false,autoSave:true,noAds:true,wifi:false,showDebug:false,vibration:true};
+var currentGame=null,pendingFindGame=null,wifiOn=false;
+try{var s=localStorage.getItem('emukai_settings_v11');if(s)settings=Object.assign(settings,JSON.parse(s));}catch(e){}
+try{var sv=localStorage.getItem('emukai_saves_v118');if(sv)saves=JSON.parse(sv)||{};}catch(e){}
+try{var gm=localStorage.getItem('emukai_meta_v118');if(gm)gamesMeta=JSON.parse(gm)||{};}catch(e){}
+try{var hd=localStorage.getItem('emukai_hidden_v1');if(hd)hidden=JSON.parse(hd)||[];if(!Array.isArray(hidden))hidden=[];}catch(e){hidden=[];}
+if(typeof settings.vibration==='undefined')settings.vibration=true;
+settings.showDebug=false;
+var PIX='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+function showToast(m){var t=document.getElementById('toast');t.textContent=m;t.style.display='block';setTimeout(function(){t.style.display='none';},2500);}
+var dlgCb=null;
+function askConfirm(msg,cb){dlgCb=cb;document.getElementById('dlgMsg').textContent=msg;document.getElementById('dlgModal').style.display='flex';}
+function dlgAnswer(y){document.getElementById('dlgModal').style.display='none';var cb=dlgCb;dlgCb=null;if(y&&cb)cb();}
+function log(m){var c=document.getElementById('logContent');var d=document.createElement('div');d.textContent='['+new Date().toLocaleTimeString()+'] '+m;c.appendChild(d);c.scrollTop=c.scrollHeight;}
+function testBotonRojo(){showToast('✅ Botones funcionando');}
+function toggleSettings(){var p=document.getElementById('settingsPanel');var o=(p.style.display!=='flex');p.style.display=o?'flex':'none';}
+function toggleManage(){var p=document.getElementById('managePanel');var o=(p.style.display!=='flex');p.style.display=o?'flex':'none';if(o)renderManage();}
+function openLog(){document.getElementById('logPanel').style.display='flex';}
+function closeLog(){document.getElementById('logPanel').style.display='none';}
+function clearLog(){document.getElementById('logContent').innerHTML='';}
+function vib(){if(!settings.vibration){try{navigator.vibrate(0);}catch(e){}return;}try{navigator.vibrate(8);}catch(e){}}
+function toggleOpt(k){settings[k]=!settings[k];if(k==='vibration'&&!settings[k]){try{navigator.vibrate(0);}catch(e){}}saveAll();updateSettingsUI();if(k!=='vibration'||settings[k])vib();showToast('✅ '+k+' '+(settings[k]?'ON':'OFF'));}
+function syncHUD(){document.body.classList.toggle('in-menu',!currentGame);}
+function updatePortableScale(){var h=window.innerHeight,w=window.innerWidth;var land=w>h;var gs=1;if(settings.portable){gs=land?Math.min(h/320,w/240):Math.max(0.8,Math.min(w/240,(h-300)/320));}document.documentElement.style.setProperty('--gs',gs.toFixed(4));}
+function updateSettingsUI(){
+document.getElementById('swPortable').className='switch'+(settings.portable?' on':'');
+document.getElementById('swAutoSave').className='switch'+(settings.autoSave?' on':'');
+document.getElementById('swNoAds').className='switch'+(settings.noAds?' on':'');
+document.getElementById('swShowDebug').className='switch'+(settings.showDebug?' on':'');
+document.getElementById('swVibration').className='switch'+(settings.vibration?' on':'');
+document.getElementById('zipWarn').style.display=(typeof JSZip!=='undefined')?'none':'block';
+document.getElementById('debugBtn').style.display=settings.showDebug?'block':'none';
+document.body.classList.toggle('portable-on',!!settings.portable);
+updatePortableScale();updateWifiUI();
+}
+window.addEventListener('resize',updatePortableScale);
+window.addEventListener('orientationchange',function(){setTimeout(updatePortableScale,200);});
+if(window.visualViewport)window.visualViewport.addEventListener('resize',updatePortableScale);
+function updateWifiUI(){var sw=document.getElementById('swWifi');if(sw)sw.className='switch'+(wifiOn?' on':'');var st=document.getElementById('wifiStatus');if(st)st.textContent=wifiOn?'Encendido':'Apagado';try{document.getElementById('gameFrame').contentWindow.postMessage({type:'EMUKAI_WIFI',on:wifiOn},'*');}catch(e){}}
+function toggleWifiOpt(){if(!wifiOn){document.getElementById('wifiModal').style.display='flex';}else{setWifi(false);}}
+function confirmWifi(y){document.getElementById('wifiModal').style.display='none';if(y)setWifi(true);}
+function setWifi(on){wifiOn=on;settings.wifi=on;saveAll();updateWifiUI();showToast(on?'📶 WiFi encendido':'📵 WiFi apagado');}
+function forceWifiOff(){if(wifiOn){wifiOn=false;settings.wifi=false;saveAll();updateWifiUI();}document.getElementById('wifiModal').style.display='none';}
+function saveAll(){try{localStorage.setItem('emukai_settings_v11',JSON.stringify(settings));localStorage.setItem('emukai_saves_v118',JSON.stringify(saves));localStorage.setItem('emukai_meta_v118',JSON.stringify(gamesMeta));localStorage.setItem('emukai_hidden_v1',JSON.stringify(hidden));}catch(e){showToast('❌ Almacenamiento lleno');}}
+var COMBOS={softL:[{code:272,key:'SoftLeft'},{code:27,key:'SoftLeft'}],softR:[{code:273,key:'SoftRight'},{code:8,key:'SoftRight'}],colgar:[{code:8,key:'Backspace'},{code:27,key:'Escape'}],resp:[{code:13,key:'Enter'},{code:13,key:'Call'}]};
+function focusGame(){try{var fr=document.getElementById('gameFrame');fr.focus();if(fr.contentWindow)fr.contentWindow.focus();}catch(e){}}
+function fireList(list,down,repeat){var fr=document.getElementById('gameFrame');var w=fr&&fr.contentWindow;if(!w)return;list.forEach(function(k){try{var code=(/^[0-9]$/.test(k.key))?'Digit'+k.key:k.key;var ev=new KeyboardEvent(down?'keydown':'keyup',{key:k.key,code:code,keyCode:k.code,which:k.code,bubbles:true,cancelable:true,repeat:!!repeat});try{Object.defineProperty(ev,'keyCode',{value:k.code});Object.defineProperty(ev,'which',{value:k.code});}catch(e){}var d=w.document;var tgt=(d.activeElement&&d.activeElement!==d.body&&d.activeElement!==d.documentElement)?d.activeElement:(d.body||d);tgt.dispatchEvent(ev);}catch(e){}});}
+var held={};
+function pressKey(id,list,rep){if(held[id])return;focusGame();var h=held[id]={list:list,iv:0};fireList(list,true,false);if(rep){h.iv=setInterval(function(){if(held[id]!==h){clearInterval(h.iv);return;}fireList(list,true,true);},70);}}
+function releaseKey(id){var h=held[id];if(!h)return;clearInterval(h.iv);delete held[id];fireList(h.list,false,false);}
+function releaseAll(){Object.keys(held).forEach(releaseKey);}
+window.addEventListener('blur',function(){setTimeout(function(){if(document.activeElement!==document.getElementById('gameFrame'))releaseAll();},0);});
+document.addEventListener('visibilitychange',function(){if(document.hidden)releaseAll();});
+var keyUid=0;
+function bindHold(el,list,rep){
+  var id='b'+(keyUid++);
+  var active={};
+  function down(identifier){
+    if(active[identifier])return;
+    active[identifier]=true;
+    el.classList.add('pressed');
+    vib();
+    pressKey(id+'_'+identifier,list,rep);
+  }
+  function up(identifier){
+    if(!active[identifier])return;
+    delete active[identifier];
+    el.classList.remove('pressed');
+    releaseKey(id+'_'+identifier);
+  }
+  el.addEventListener('touchstart',function(e){e.preventDefault();for(var i=0;i<e.changedTouches.length;i++)down('t'+e.changedTouches[i].identifier);},{passive:false});
+  el.addEventListener('touchend',function(e){for(var i=0;i<e.changedTouches.length;i++)up('t'+e.changedTouches[i].identifier);},{passive:true});
+  el.addEventListener('touchcancel',function(e){for(var i=0;i<e.changedTouches.length;i++)up('t'+e.changedTouches[i].identifier);},{passive:true});
+  el.addEventListener('mousedown',function(e){e.preventDefault();down('m');});
+  el.addEventListener('mouseup',function(e){up('m');});
+  el.addEventListener('mouseleave',function(e){up('m');});
+}
+function bindDpad(c){
+  var states={};
+  function dirFrom(x,y){
+    var r=c.getBoundingClientRect();
+    var dx=x-(r.left+r.width/2);
+    var dy=y-(r.top+r.height/2);
+    if(Math.abs(dx)>Math.abs(dy)) return dx>0 ? 39 : 37;
+    return dy>0 ? 40 : 38;
+  }
+  function nameOf(k){return k==37?'ArrowLeft':k==38?'ArrowUp':k==39?'ArrowRight':'ArrowDown';}
+  function setFor(id,k){
+    var cur=states[id];
+    if(cur===k) return;
+    if(cur){var ob=c.querySelector('[data-k="'+cur+'"]');if(ob)ob.classList.remove('pressed');releaseKey('d'+cur+'_'+c.id+'_'+id);}
+    states[id]=k;
+    if(k){
+      vib();
+      var btn=c.querySelector('[data-k="'+k+'"]');
+      if(btn) btn.classList.add('pressed');
+      pressKey('d'+k+'_'+c.id+'_'+id,[{code:k,key:nameOf(k)}],true);
+    }
+  }
+  function clearFor(id){
+    var cur=states[id];
+    if(cur===undefined) return;
+    var btn=c.querySelector('[data-k="'+cur+'"]');
+    if(btn) btn.classList.remove('pressed');
+    releaseKey('d'+cur+'_'+c.id+'_'+id);
+    delete states[id];
+  }
+  c.addEventListener('touchstart',function(e){e.preventDefault();for(var i=0;i<e.changedTouches.length;i++){var t=e.changedTouches[i];setFor('t'+t.identifier,dirFrom(t.clientX,t.clientY));}},{passive:false});
+  c.addEventListener('touchmove',function(e){e.preventDefault();for(var i=0;i<e.changedTouches.length;i++){var t=e.changedTouches[i];var id='t'+t.identifier;if(states[id]!==undefined) setFor(id,dirFrom(t.clientX,t.clientY));}},{passive:false});
+  c.addEventListener('touchend',function(e){for(var i=0;i<e.changedTouches.length;i++)clearFor('t'+e.changedTouches[i].identifier);},{passive:true});
+  c.addEventListener('touchcancel',function(e){for(var i=0;i<e.changedTouches.length;i++)clearFor('t'+e.changedTouches[i].identifier);},{passive:true});
+  c.addEventListener('mousedown',function(e){e.preventDefault();setFor('m',dirFrom(e.clientX,e.clientY));});
+  c.addEventListener('mousemove',function(e){if(e.buttons&&states['m']!==undefined) setFor('m',dirFrom(e.clientX,e.clientY));});
+  c.addEventListener('mouseup',function(e){clearFor('m');});
+}
+function bindAllKeys(){
+  document.querySelectorAll('#dpadCross [data-k]').forEach(function(el){var k=+el.getAttribute('data-k');bindHold(el,[{code:k,key:el.getAttribute('data-n')}],k!==13);});
+  bindDpad(document.getElementById('hudCross'));
+  document.querySelectorAll('[data-combo]').forEach(function(el){bindHold(el,COMBOS[el.getAttribute('data-combo')],false);});
+  document.querySelectorAll('[data-k]').forEach(function(el){if(el.closest('#dpadCross,#hudCross'))return;var k=+el.getAttribute('data-k');bindHold(el,[{code:k,key:el.getAttribute('data-n')}],false);});
+}
+function mimeOf(p){var e=String(p).split('?')[0].split('.').pop().toLowerCase();var m={css:'text/css',js:'text/javascript',json:'application/json',html:'text/html',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',ico:'image/x-icon',mp3:'audio/mpeg',ogg:'audio/ogg',wav:'audio/wav',woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf',otf:'font/otf'};return m[e]||'text/plain';}
+function makeSilentWav(){var len=4410,buf=new ArrayBuffer(44+len*2),v=new DataView(buf);function w(o,t){for(var i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i));}w(0,'RIFF');v.setUint32(4,36+len*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,44100,true);v.setUint32(28,88200,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,len*2,true);var bin='',u8=new Uint8Array(buf);for(var i=0;i<u8.length;i++)bin+=String.fromCharCode(u8[i]);return 'data:audio/wav;base64,'+btoa(bin);}
+function parseJSONRobusto(t){t=String(t||'').replace(/^\uFEFF/,'').trim();var i=t.indexOf('{'),j=t.lastIndexOf('}');if(i>=0&&j>i)t=t.slice(i,j+1);return JSON.parse(t);}
+function rewriteCss(txt,map){var keys=Object.keys(map);return txt.replace(/url\(\s*(['"]?)([^)'"]+)\1\s*\)/g,function(m,q,u){if(/^(data:|blob:|https?:|#)/i.test(u))return m;var tail=u.split('?')[0].split('#')[0].replace(/^(\.\.?\/)+/,'').replace(/^\//,'');var k=keys.find(function(x){return x===tail||x.endsWith('/'+tail);})||keys.find(function(x){return x.split('/').pop()===tail.split('/').pop();});return k?'url("'+map[k]+'")':m;});}
+function pickIcon(m,files){var raw=(m&&m.icons)||[];var list=[];if(Array.isArray(raw))list=raw;else if(raw&&typeof raw==='object')list=Object.keys(raw).map(function(k){return{src:raw[k],sizes:k+'x'+k};});var c=list.map(function(i){return{src:String(i.src||'').split('?')[0].replace(/^\.?\//,''),sz:parseInt(String(i.sizes||'0').split('x')[0])||0};});c.sort(function(a,b){return b.sz-a.sz;});for(var ii=0;ii<c.length;ii++){var k=Object.keys(files).find(function(kk){return kk===c[ii].src||kk.endsWith('/'+c[ii].src);});if(k&&String(files[k]).indexOf('data:image')===0)return files[k];}return '';}
+function shrinkIcon(url){return new Promise(function(res){if(!url)return res('');var im=new Image();im.onload=function(){try{var c=document.createElement('canvas');c.width=c.height=64;c.getContext('2d').drawImage(im,0,0,64,64);res(c.toDataURL('image/png'));}catch(e){res(url);}};im.onerror=function(){res('');};im.src=url;});}
+function iconOf(n){return(gamesMeta[n]&&gamesMeta[n].icon)||(saves[n]&&saves[n].icon)||'';}
+function exportSaves(){var data={app:'EMUKAI',version:'Definitive 1',by:'vagoestoy',saves:saves};var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='emukai-guardados.json';a.click();showToast('⬇️ Exportados');}
+function deleteSave(n){askConfirm('¿Borrar la partida guardada de '+n+'? El juego seguirá disponible.',function(){delete saves[n];saveAll();renderList();showToast('💾 Partida borrada');});}
+function saveCurrentGame(){if(!currentGame){showToast('💾 Entra a un juego primero');return;}try{document.getElementById('gameFrame').contentWindow.postMessage({type:'EMUKAI_GET_SAVE'},'*');}catch(e){}}
+function applySaveToGame(n){var s=saves[n];if(!s)return;setTimeout(function(){try{document.getElementById('gameFrame').contentWindow.postMessage({type:'EMUKAI_APPLY_SAVE',data:s.data},'*');}catch(e){}});}
+window.addEventListener('message',function(e){if(!e.data)return;if(e.data.type==='EMUKAI_SAVE_DATA'&&currentGame){var d=e.data.data||{};saves[currentGame]={gameName:currentGame,fileName:gamesMeta[currentGame]?gamesMeta[currentGame].fileName:'',icon:iconOf(currentGame),savedAt:new Date().toISOString(),data:d};saveAll();renderList();showToast('💾 Guardada');}if(e.data.type==='EMUKAI_GAME_ERROR'||e.data.type==='EMUKAI_GAME_LOG'){log('🎮 '+e.data.msg);}});
+function allNames(){var names=[];[games,gamesMeta,saves].forEach(function(obj){Object.keys(obj).forEach(function(k){if(names.indexOf(k)<0)names.push(k);});});return names;}
+function renderList(){var l=document.getElementById('gameList');var names=allNames().filter(function(n){return hidden.indexOf(n)<0;});l.innerHTML='';if(!names.length){l.innerHTML='<p style="color:#777;font-size:12px;">Sin juegos.<br>Importa un ZIP abajo.</p>';renderManage();return;}names.forEach(function(n){var s=saves[n];var icon=iconOf(n);var d=document.createElement('div');d.className='gameItem';var ic;if(icon){ic=document.createElement('img');ic.src=icon;ic.alt='';ic.onerror=function(){var f=document.createElement('div');f.className='noicon';f.textContent='🎮';ic.replaceWith(f);};}else{ic=document.createElement('div');ic.className='noicon';ic.textContent='🎮';}var info=document.createElement('div');info.className='info';var nm=document.createElement('div');nm.className='name';nm.textContent=n;var sub=document.createElement('div');sub.style.cssText='font-size:11px;color:#aaa';sub.textContent=s?'💾 Guardado':(games[n]?'✅ Listo':'📂 Falta buscar ZIP');var btns=document.createElement('div');btns.className='btns';var pb=document.createElement('button');pb.className='play';pb.textContent='▶️ '+(s?'Continuar':'Jugar');pb.onclick=function(){tryPlayGame(n);};btns.appendChild(pb);var db=document.createElement('button');db.textContent='🗑️ Ocultar';db.onclick=function(ev){ev.stopPropagation();hideGame(n);};btns.appendChild(db);info.appendChild(nm);info.appendChild(sub);info.appendChild(btns);d.appendChild(ic);d.appendChild(info);l.appendChild(d);});renderManage();}
+function renderManage(){
+var dl=document.getElementById('delList'),rl=document.getElementById('resList');if(!dl||!rl)return;
+dl.innerHTML='';rl.innerHTML='';
+var all=allNames();
+var vis=all.filter(function(n){return hidden.indexOf(n)<0;});
+var hid=all.filter(function(n){return hidden.indexOf(n)>=0;});
+function row(n,label,cls,fn){var r=document.createElement('div');r.className='mini';var s=document.createElement('span');s.textContent=n;var b=document.createElement('button');b.textContent=label;if(cls)b.className=cls;b.onclick=fn;r.appendChild(s);r.appendChild(b);return r;}
+function none(t){var r=document.createElement('div');r.className='mini none';r.textContent=t;return r;}
+if(!vis.length)dl.appendChild(none('No hay juegos'));
+vis.forEach(function(n){dl.appendChild(row(n,'🗑️ Ocultar','',function(){hideGame(n);}));});
+if(!hid.length)rl.appendChild(none('Nada eliminado'));
+hid.forEach(function(n){rl.appendChild(row(n,'♻️ Restaurar','rest',function(){restoreGame(n);}));});
+}
+function hideGame(n){askConfirm('¿Ocultar "'+n+'" del menú? No se borrarán el juego ni su partida. Podrás restaurarlo desde Administrar juegos o importarlo otra vez.',function(){if(hidden.indexOf(n)<0)hidden.push(n);saveAll();renderList();showToast('🗑️ Juego oculto: '+n);renderManage();});}
+function restoreGame(n){hidden=hidden.filter(function(x){return x!==n;});saveAll();renderList();renderManage();showToast('♻️ Restaurado: '+n);}
+function tryPlayGame(n){if(hidden.indexOf(n)>=0)return;if(games[n]){playGame(n);return;}pendingFindGame=n;showToast('📂 Busca el ZIP de '+n);document.getElementById('findInput').click();}
+function playGame(n){currentGame=n;document.getElementById('menu').style.display='none';syncHUD();var fr=document.getElementById('gameFrame');fr.removeAttribute('src');fr.srcdoc=games[n];if(saves[n])applySaveToGame(n);}
+function goHome(){releaseAll();forceWifiOff();if(currentGame&&settings.autoSave){try{document.getElementById('gameFrame').contentWindow.postMessage({type:'EMUKAI_GET_SAVE'},'*');}catch(e){}}setTimeout(function(){var fr=document.getElementById('gameFrame');fr.removeAttribute('srcdoc');fr.src='about:blank';currentGame=null;document.getElementById('menu').style.display='flex';syncHUD();renderList();},300);}
+document.getElementById('saveInput').addEventListener('change',function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var j=JSON.parse(r.result);var inc=j.saves||j;var c=0;for(var k in inc){saves[k]=inc[k];c++;if(!gamesMeta[k])gamesMeta[k]={fileName:inc[k].fileName||'',icon:inc[k].icon||'',lastSeen:new Date().toISOString()};}saveAll();renderList();showToast('✅ Importados '+c);}catch(err){showToast('❌ JSON malo');}};r.readAsText(f);e.target.value='';});
+document.getElementById('findInput').addEventListener('change',function(e){var f=e.target.files[0];if(!f||!pendingFindGame){e.target.value='';return;}var exp=gamesMeta[pendingFindGame]?gamesMeta[pendingFindGame].fileName:'';if(exp&&f.name!==exp){showToast('❌ juego no encontrado');e.target.value='';pendingFindGame=null;return;}pendingFindGame=null;handleZipFile(f);e.target.value='';});
+document.getElementById('fileInput').addEventListener('change',function(e){var f=e.target.files[0];if(!f)return;showToast('📂 Leyendo '+f.name+'...');handleZipFile(f);e.target.value='';});
+function emukaiInjector(MAP,SMART){
+var P=window.parent;function post(o){try{P.postMessage(o,'*');}catch(e){}}
+var PIX2='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+var SW=null;
+function silentWav(){if(SW)return SW;var n=4410,b=new Uint8Array(44+n*2),v=new DataView(b.buffer);function w(o,t){for(var i=0;i<t.length;i++)v.setUint8(o+i,t.charCodeAt(i));}w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,44100,true);v.setUint32(28,88200,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);var s='';for(var i=0;i<b.length;i++)s+=String.fromCharCode(b[i]);SW='data:audio/wav;base64,'+btoa(s);return SW;}
+window.EMUKAI_WIFI=false;
+window.addEventListener('message',function(e){if(!e.data)return;if(e.data.type==='EMUKAI_WIFI'){window.EMUKAI_WIFI=!!e.data.on;}if(e.data.type==='EMUKAI_GET_SAVE'){var d={};try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k.indexOf('emukai_')===0)continue;d[k]=localStorage.getItem(k);}}catch(x){}post({type:'EMUKAI_SAVE_DATA',data:d});}if(e.data.type==='EMUKAI_APPLY_SAVE'&&e.data.data){try{for(var k in e.data.data)localStorage.setItem(k,e.data.data[k]);location.reload();}catch(x){}}});
+try{var st=document.createElement('style');st.textContent='*{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}';(document.head||document.documentElement).appendChild(st);}catch(x){}
+document.addEventListener('contextmenu',function(e){e.preventDefault();});
+if(!window.getKaiAd)window.getKaiAd=function(o){if(o&&o.onerror)setTimeout(function(){o.onerror('off');},0);};
+function isExternal(u){return /^(https?:|\/\/)/i.test(String(u||''));}
+function resolve(url){if(typeof url!=='string'||!url)return url;if(/^(blob:|data:|https?:)/i.test(url))return url;var clean=url.split('?')[0].split('#')[0].replace(/^(\.\.?\/)+/,'').replace(/^\//,'');if(MAP[clean])return MAP[clean];var k;for(k in MAP){if(k.endsWith('/'+clean))return MAP[k];}var sh=clean.split('/').pop();for(k in MAP){if(k.split('/').pop()===sh)return MAP[k];}if(SMART){if(/\.(png|jpg|jpeg|gif|webp)$/i.test(clean))return PIX2;if(/\.(mp3|ogg|wav)$/i.test(clean))return silentWav();if(/\.js$/i.test(clean))return 'data:text/javascript;charset=utf-8,';if(/\.css$/i.test(clean))return 'data:text/css;charset=utf-8,';if(/\.json$/i.test(clean))return 'data:application/json;charset=utf-8,{}';}return url;}
+var oF=window.fetch;window.fetch=function(u,o){var us=(typeof u==='string')?u:(u&&u.url?u.url:'');if(isExternal(us)&&!window.EMUKAI_WIFI){return Promise.reject(new Error('WiFi OFF'));}var x=(typeof u==='string')?resolve(u):u;return oF.call(window,x,o).catch(function(e){if(SMART&&!isExternal(us))return new Response('{}',{status:200});throw e;});};
+var oO=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){var a=[].slice.call(arguments);a[1]=resolve(u);return oO.apply(this,a);};
+var OI=window.Image,dI=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');window.Image=function(w,h){var i=new OI(w,h);Object.defineProperty(i,'src',{set:function(v){dI.set.call(this,resolve(v));},get:function(){return dI.get.call(this);}});return i;};window.Image.prototype=OI.prototype;
+Object.defineProperty(HTMLImageElement.prototype,'src',{configurable:true,set:function(v){dI.set.call(this,resolve(v));},get:function(){return dI.get.call(this);}});
+var dS=Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype,'src');Object.defineProperty(HTMLScriptElement.prototype,'src',{configurable:true,set:function(v){dS.set.call(this,resolve(v));},get:function(){return dS.get.call(this);}});
+var oSA=Element.prototype.setAttribute;Element.prototype.setAttribute=function(n,v){if((this.tagName==='IMG'||this.tagName==='SCRIPT')&&n==='src')v=resolve(v);return oSA.call(this,n,v);};
+var OA=window.Audio;window.Audio=function(s){var a=new OA();if(s)a.src=resolve(s);return a;};window.Audio.prototype=OA.prototype;
+document.addEventListener('error',function(e){var t=e.target;if(t&&t.tagName==='IMG'&&t.src!==PIX2){t.onerror=null;t.style.display='none';dI.set.call(t,PIX2);}},true);
+window.addEventListener('error',function(e){if(e.target&&e.target!==window)return;post({type:'EMUKAI_GAME_ERROR',msg:e.message+' | '+e.filename+':'+e.lineno});});
+window.addEventListener('unhandledrejection',function(e){post({type:'EMUKAI_GAME_ERROR',msg:'Promesa rechazada: '+(e.reason&&e.reason.message?e.reason.message:e.reason)});});
+}
+async function handleZipFile(file){
+log('📂 Importando: '+file.name);
+try{
+if(typeof JSZip==='undefined'){showToast('❌ JSZip no cargó, prende internet 1 vez');return;}
+var zip=await JSZip.loadAsync(file);var files={},map={};var BIN=['png','jpg','jpeg','gif','webp','ico','mp3','ogg','wav','woff','woff2','ttf','otf'];var paths=Object.keys(zip.files);
+for(var pi=0;pi<paths.length;pi++){var path=paths[pi];var en=zip.files[path];if(en.dir)continue;if(path.indexOf('__MACOSX')>=0||path.indexOf('.DS_Store')>=0)continue;var ext=path.split('.').pop().toLowerCase();if(BIN.indexOf(ext)>=0){var u='data:'+mimeOf(path)+';base64,'+await en.async('base64');files[path]=u;map[path]=u;}else files[path]=await en.async('string');}
+for(var p in files){if(/\.css$/i.test(p)&&files[p].indexOf('data:')!==0)files[p]=rewriteCss(files[p],map);}
+var manifestPath=Object.keys(files).find(function(pp){return /manifest\.(webmanifest|webapp)$/.test(pp);});var name=file.name.replace(/\.zip$/i,'');var launchPath=null,m=null;
+if(manifestPath){try{m=parseJSONRobusto(files[manifestPath]);if(m.name)name=m.name;var lp=m.launch_path||m.start_url;if(lp)launchPath=lp.split('?')[0].replace(/^\.?\//,'');}catch(err){log('⚠️ Manifest no se pudo leer: '+err.message);}}
+var iconData=await shrinkIcon(pickIcon(m,files));
+var htmlPath=(launchPath&&files[launchPath]!==undefined&&launchPath)||Object.keys(files).find(function(pp){return pp==='index.html';})||Object.keys(files).find(function(pp){return pp.endsWith('index.html');})||Object.keys(files).find(function(pp){return pp.endsWith('.html');});
+if(!htmlPath){showToast('❌ No hay index.html');return;}
+var html=files[htmlPath];var base=htmlPath.indexOf('/')>=0?htmlPath.substring(0,htmlPath.lastIndexOf('/')+1):'';
+if(settings.noAds)html=html.replace(/<script[^>]*kaiads[^>]*><\/script>/gi,'<!-- kaiads off -->');
+var cache={};function toURL(k){var v=files[k];if(String(v).indexOf('data:')===0)return v;if(!cache[k])cache[k]='data:'+mimeOf(k)+';charset=utf-8,'+encodeURIComponent(v);return cache[k];}
+html=html.replace(/(src|href)=["']([^"']+)["']/g,function(mm,attr,src){if(/^(https?:|data:|blob:|#|javascript:|mailto:|\/\/)/i.test(src))return mm;var clean=src.split('?')[0].split('#')[0].replace(/^\.?\//,'');var full=(base&&clean.indexOf(base)!==0)?base+clean:clean;var key=files[full]!==undefined?full:(files[clean]!==undefined?clean:Object.keys(files).find(function(kk){return kk.endsWith('/'+clean);}));if(key!==undefined){if(/\.js$/i.test(key)&&String(files[key]).indexOf('data:')!==0)return attr+'="__EMUKAI_JS__'+encodeURIComponent(key)+'"';return attr+'="'+toURL(key)+'"';}if(/\.(png|jpg|jpeg|gif|webp)$/i.test(clean))return attr+'="'+PIX+'"';if(/\.(mp3|ogg|wav)$/i.test(clean))return attr+'="'+makeSilentWav()+'"';if(/\.js$/i.test(clean))return attr+'="data:text/javascript;charset=utf-8,"';if(/\.css$/i.test(clean))return attr+'="data:text/css;charset=utf-8,"';if(/\.json$/i.test(clean))return attr+'="data:application/json;charset=utf-8,{}"';return mm;});
+html=html.replace(/<script([^>]*?)\ssrc="__EMUKAI_JS__([^"]+)"([^>]*)><\/script>/gi,function(mm,a,k,b){return '<script'+a+b+'>'+String(files[decodeURIComponent(k)]).replace(/<\/script/gi,'<\\/script')+'<\/script>';});
+html=html.replace(/__EMUKAI_JS__([^"']+)/g,function(mm,k){return toURL(decodeURIComponent(k));});
+var full2={};for(var k2 in map)full2[k2]=map[k2];
+for(var k3 in files){var v2=files[k3];if(String(v2).indexOf('data:')===0)continue;if(!/\.(js|json|ini|txt|xml|css)$/i.test(k3))continue;if(k3.indexOf('META-INF/')===0||k3===htmlPath||/manifest\.(webmanifest|webapp)$/.test(k3)||v2.length>600000)continue;full2[k3]=toURL(k3);}
+var mapJson=JSON.stringify(full2).replace(/</g,'\\u003c');
+var inject='<script>('+emukaiInjector.toString()+')('+mapJson+',true);<\/script>';
+html=/<\/head>/i.test(html)?html.replace(/<\/head>/i,function(){return inject+'</head>';}):inject+html;
+hidden=hidden.filter(function(x){return x!==name;});
+games[name]=html;gamesMeta[name]={fileName:file.name,icon:iconData,lastSeen:new Date().toISOString()};if(saves[name]&&!saves[name].icon)saves[name].icon=iconData;
+saveAll();renderList();playGame(name);showToast('✅ '+name);log('✅ Juego: '+name);
+}catch(err){log('❌ ERROR: '+err.message);showToast('❌ Error: '+err.message);}
+}
+var ACTS={settings:function(){toggleSettings();},home:function(){goHome();},save:function(){saveCurrentGame();},log:function(){openLog();},portableoff:function(){toggleOpt('portable');}};
+function findAct(e){return e.target&&e.target.closest?e.target.closest('[data-act]'):null;}
+function doAct(t){var f=ACTS[t.getAttribute('data-act')];if(f){try{f();}catch(err){showErr(err.message);}}}
+document.addEventListener('click',function(e){var t=findAct(e);if(!t)return;doAct(t);},true);
+bindAllKeys();updateSettingsUI();renderList();syncHUD();log('EMUKAI Definitive 1 by vagoestoy listo');
+</script>
+</body>
+</html>
