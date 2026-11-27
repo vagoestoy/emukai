@@ -120,7 +120,7 @@ body.portable-on .keypad,body.portable-on .bottom-links,body.portable-on #debugB
 <div id="gameList"></div>
 <label for="fileInput" id="menuImport">Importar 📥</label>
 <div class="saveBar"><button onclick="exportSaves()">⬇️ Exportar Guardados</button><label for="saveInput">⬆️ Importar Guardados</label></div>
-<p id="zipWarn" style="display:none;font-size:11px;color:#ff6b6b;margin:4px 0 0;">⚠️ JSZip no cargó: prende internet 1 vez</p>
+<p id="zipWarn" style="display:none;font-size:11px;color:#ff6b6b;margin:4px 0 0;">⚠️ JSZip no cargó: ve a Ajustes > JSZip Manual</p>
 </div>
 <div id="logPanel"><div style="display:flex;justify-content:space-between;padding:8px;background:#222;color:#fff;"><span>📋 LOG</span><button onclick="closeLog()">X</button></div><div id="logContent"></div><button onclick="clearLog()">🧹 Limpiar</button></div>
 <div id="toast"></div>
@@ -132,7 +132,8 @@ body.portable-on .keypad,body.portable-on .bottom-links,body.portable-on #debugB
 <div class="opt"><div><b>📶 WiFi para juegos</b><br><small id="wifiStatus">Apagado</small></div><div class="switch" id="swWifi" onclick="toggleWifiOpt()"></div></div>
 <div class="opt"><div><b>📳 Vibración</b><br><small>Vibra al picar un botón</small></div><div class="switch" id="swVibration" onclick="toggleOpt('vibration')"></div></div>
 <div class="opt"><div><b>🔴 Mostrar botón Probar</b><br><small>Escondido por default. Si lo apagas, se oculta.</small></div><div class="switch" id="swShowDebug" onclick="toggleOpt('showDebug')"></div></div>
-<div class="credits"><b>EMUKAI</b><p>Creado por<br><b style="color:#fff;font-size:18px;">vagoestoy</b><br>Tu Nokia en tu Android</p><div class="ver">Definitive 1 • PreOffline</div><p style="font-size:11px;color:#aaa;margin-top:8px;">Solo ocupa internet 1 vez para JSZip.<br>Después jala sin internet.</p></div>
+<div class="opt"><div><b>📦 JSZip Manual</b><br><small id="jszipStatus">Si no cargó, impórtalo aquí</small></div><button onclick="document.getElementById('jszipInput').click()" style="background:#651BB0;color:#fff;border:none;padding:10px 14px;border-radius:10px;font-weight:bold;flex-shrink:0;">📂 Importar</button></div>
+<div class="credits"><b>EMUKAI</b><p>Creado por<br><b style="color:#fff;font-size:18px;">vagoestoy</b><br>juegos kaios en tu Android</p><div class="ver">Definitive 1 • PreOffline</div><p style="font-size:11px;color:#aaa;margin-top:8px;">Si JSZip no carga, impórtalo en Ajustes.<br>Después jala sin internet.</p></div>
 <button onclick="toggleSettings()" style="background:#651BB0;color:#fff;border:none;padding:12px;border-radius:10px;font-weight:bold;">✅ Listo</button>
 </div>
 <div id="managePanel"><h3>🟪 Administrar juegos</h3><div class="manageSection"><h4>🗑️ Ocultar juegos</h4><small style="color:#aaa">Los juegos ocultos no aparecen en el menú. Sus partidas se conservan.</small><div id="delList"></div></div><div class="manageSection"><h4>♻️ Restaurar juegos</h4><small style="color:#aaa">Vuelve a mostrar los juegos que ocultaste.</small><div id="resList"></div></div><button class="manageClose" onclick="toggleManage()">✅ Listo</button></div>
@@ -153,6 +154,7 @@ body.portable-on .keypad,body.portable-on .bottom-links,body.portable-on #debugB
 <input type="file" id="fileInput" accept=".zip,application/zip" style="display:none">
 <input type="file" id="saveInput" accept=".json,application/json" style="display:none">
 <input type="file" id="findInput" accept=".zip,application/zip" style="display:none">
+<input type="file" id="jszipInput" accept=".js,text/javascript" style="display:none">
 <div class="bottom-links" style="text-align:center;padding:6px;font-size:12px;"><span data-act="home">🏠 Volver</span> <span data-act="save">💾 Guardar</span> <span data-act="log">📋 Log</span> <span data-act="settings">⚙️ Opciones</span></div>
 </div>
 <div id="portableHUD">
@@ -199,6 +201,7 @@ document.getElementById('swNoAds').className='switch'+(settings.noAds?' on':'');
 document.getElementById('swShowDebug').className='switch'+(settings.showDebug?' on':'');
 document.getElementById('swVibration').className='switch'+(settings.vibration?' on':'');
 document.getElementById('zipWarn').style.display=(typeof JSZip!=='undefined')?'none':'block';
+var jsSt=document.getElementById('jszipStatus');if(jsSt)jsSt.textContent=(typeof JSZip!=='undefined')?'✅ JSZip cargado':'Si no cargó, impórtalo aquí';
 document.getElementById('debugBtn').style.display=settings.showDebug?'block':'none';
 document.body.classList.toggle('portable-on',!!settings.portable);
 updatePortableScale();updateWifiUI();
@@ -324,6 +327,7 @@ function goHome(){releaseAll();forceWifiOff();if(currentGame&&settings.autoSave)
 document.getElementById('saveInput').addEventListener('change',function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var j=JSON.parse(r.result);var inc=j.saves||j;var c=0;for(var k in inc){saves[k]=inc[k];c++;if(!gamesMeta[k])gamesMeta[k]={fileName:inc[k].fileName||'',icon:inc[k].icon||'',lastSeen:new Date().toISOString()};}saveAll();renderList();showToast('✅ Importados '+c);}catch(err){showToast('❌ JSON malo');}};r.readAsText(f);e.target.value='';});
 document.getElementById('findInput').addEventListener('change',function(e){var f=e.target.files[0];if(!f||!pendingFindGame){e.target.value='';return;}var exp=gamesMeta[pendingFindGame]?gamesMeta[pendingFindGame].fileName:'';if(exp&&f.name!==exp){showToast('❌ juego no encontrado');e.target.value='';pendingFindGame=null;return;}pendingFindGame=null;handleZipFile(f);e.target.value='';});
 document.getElementById('fileInput').addEventListener('change',function(e){var f=e.target.files[0];if(!f)return;showToast('📂 Leyendo '+f.name+'...');handleZipFile(f);e.target.value='';});
+document.getElementById('jszipInput').addEventListener('change',function(e){var f=e.target.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var s=document.createElement('script');s.text=r.result;document.head.appendChild(s);}catch(err){showToast('❌ No se pudo cargar');return;}setTimeout(function(){if(typeof JSZip!=='undefined'){showToast('✅ JSZip importado');updateSettingsUI();}else{showToast('❌ Ese archivo no es JSZip');}},300);};r.readAsText(f);e.target.value='';});
 function emukaiInjector(MAP,SMART){
 var P=window.parent;function post(o){try{P.postMessage(o,'*');}catch(e){}}
 var PIX2='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
@@ -350,7 +354,7 @@ window.addEventListener('unhandledrejection',function(e){post({type:'EMUKAI_GAME
 async function handleZipFile(file){
 log('📂 Importando: '+file.name);
 try{
-if(typeof JSZip==='undefined'){showToast('❌ JSZip no cargó, prende internet 1 vez');return;}
+if(typeof JSZip==='undefined'){showToast('❌ JSZip no cargó, ve a Ajustes > JSZip Manual');return;}
 var zip=await JSZip.loadAsync(file);var files={},map={};var BIN=['png','jpg','jpeg','gif','webp','ico','mp3','ogg','wav','woff','woff2','ttf','otf'];var paths=Object.keys(zip.files);
 for(var pi=0;pi<paths.length;pi++){var path=paths[pi];var en=zip.files[path];if(en.dir)continue;if(path.indexOf('__MACOSX')>=0||path.indexOf('.DS_Store')>=0)continue;var ext=path.split('.').pop().toLowerCase();if(BIN.indexOf(ext)>=0){var u='data:'+mimeOf(path)+';base64,'+await en.async('base64');files[path]=u;map[path]=u;}else files[path]=await en.async('string');}
 for(var p in files){if(/\.css$/i.test(p)&&files[p].indexOf('data:')!==0)files[p]=rewriteCss(files[p],map);}
@@ -382,4 +386,4 @@ document.addEventListener('click',function(e){var t=findAct(e);if(!t)return;doAc
 bindAllKeys();updateSettingsUI();renderList();syncHUD();log('EMUKAI Definitive 1 by vagoestoy listo');
 </script>
 </body>
-</html>
+                     </html>
